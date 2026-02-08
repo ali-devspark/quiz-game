@@ -1,34 +1,18 @@
-"use client";
-
-import React from "react";
+import React, { Suspense } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import {
-    LayoutDashboard,
     FileText,
-    Settings,
-    LogOut,
     Plus,
-    MoreVertical,
     Users,
     Trophy,
     Clock,
-    ExternalLink,
-    Brain
+    Zap,
+    ExternalLink
 } from "lucide-react";
-
-const SidebarItem = ({ icon: Icon, label, active = false }: any) => (
-    <Link
-        href="#"
-        className={cn(
-            "flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium",
-            active ? "bg-primary text-white shadow-lg shadow-primary/25" : "text-muted hover:bg-white/5 hover:text-white"
-        )}
-    >
-        <Icon className="w-5 h-5" />
-        {label}
-    </Link>
-);
+import { auth } from "@/auth";
+import { PLANS, PlanType } from "@/lib/plans";
+import { cn } from "@/lib/utils";
+import { prisma } from "@/lib/prisma";
 
 const StatCard = ({ label, value, icon: Icon, color }: any) => (
     <div className="bg-card border border-border p-6 rounded-3xl group hover:border-primary/50 transition-all">
@@ -36,147 +20,161 @@ const StatCard = ({ label, value, icon: Icon, color }: any) => (
             <div className={cn("p-3 rounded-2xl", color)}>
                 <Icon className="w-6 h-6 text-white" />
             </div>
-            <MoreVertical className="text-muted w-5 h-5 cursor-pointer" />
         </div>
         <div className="text-2xl font-black mb-1">{value}</div>
         <div className="text-sm text-muted font-medium">{label}</div>
     </div>
 );
 
-const QuizRow = ({ title, date, players, status }: any) => (
+const QuizRow = ({ id, title, date, status }: any) => (
     <div className="flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-lg">
                 {title[0]}
             </div>
             <div>
-                <div className="font-bold group-hover:text-primary transition-colors">{title}</div>
+                <Link href={`/dashboard/quizzes/${id}`} className="font-bold group-hover:text-primary transition-colors cursor-pointer">
+                    {title}
+                </Link>
                 <div className="text-xs text-muted flex items-center gap-2">
-                    <Clock className="w-3 h-3" /> {date}
+                    <Clock className="w-3 h-3" /> {new Date(date).toLocaleDateString()}
                 </div>
             </div>
         </div>
         <div className="flex items-center gap-8">
-            <div className="hidden md:flex items-center gap-2">
-                <Users className="w-4 h-4 text-muted" />
-                <span className="text-sm font-bold">{players}</span>
-            </div>
             <span className={cn(
                 "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                status === 'Active' ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
+                status ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-slate-500/10 text-slate-500 border border-slate-500/20"
             )}>
-                {status}
+                {status ? 'Published' : 'Draft'}
             </span>
-            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+            <Link href={`/dashboard/quizzes/${id}`} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
                 <ExternalLink className="w-4 h-4 text-muted" />
-            </button>
+            </Link>
         </div>
     </div>
 );
 
-// Helper for conditional classes since I can't import it in this snippet easily without full setup
-function cn(...classes: any[]) {
-    return classes.filter(Boolean).join(' ');
+async function QuizList({ userId }: { userId: string }) {
+    const quizzes = await prisma.quiz.findMany({
+        where: { authorId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+    });
+
+    if (quizzes.length === 0) {
+        return (
+            <div className="space-y-4 text-center py-12">
+                <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/5">
+                    <FileText className="text-muted w-10 h-10" />
+                </div>
+                <h3 className="font-bold text-lg">No Quizzes Yet</h3>
+                <p className="text-muted text-sm max-w-xs mx-auto">Create your first quiz and start hosting tournaments for your audience.</p>
+                <Link href="/dashboard/quizzes/create" className="mt-6 text-primary font-bold hover:underline flex items-center gap-2 mx-auto justify-center">
+                    <Plus className="w-4 h-4" /> Create your first quiz
+                </Link>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-2">
+            {quizzes.map((quiz: any) => (
+                <QuizRow
+                    key={quiz.id}
+                    id={quiz.id}
+                    title={quiz.title}
+                    date={quiz.createdAt}
+                    status={quiz.published}
+                />
+            ))}
+        </div>
+    );
 }
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    const session = await auth();
+    const userId = session?.user?.id;
+    const userName = session?.user?.name || "Organizer";
+    const userPlan = (session?.user as any)?.plan as PlanType || "FREE";
+    const currentPlan = PLANS[userPlan];
+
+    if (!userId) return null;
+
+    const quizCount = await prisma.quiz.count({
+        where: { authorId: userId }
+    });
+
     return (
-        <div className="min-h-screen bg-[#020617] text-white flex">
-            {/* Sidebar */}
-            <aside className="w-72 border-r border-white/5 p-6 hidden lg:flex flex-col">
-                <div className="flex items-center gap-3 mb-12 px-2">
-                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                        <Brain className="text-white w-6 h-6" />
-                    </div>
-                    <span className="text-xl font-black tracking-tight">QuizMaster</span>
-                </div>
-
-                <div className="space-y-2 flex-1">
-                    <SidebarItem icon={LayoutDashboard} label="Overview" active />
-                    <SidebarItem icon={FileText} label="My Quizzes" />
-                    <SidebarItem icon={Trophy} label="Tournaments" />
-                    <SidebarItem icon={Users} label="Participants" />
-                    <SidebarItem icon={Settings} label="Settings" />
-                </div>
-
-                <div className="pt-6 border-t border-white/5">
-                    <SidebarItem icon={LogOut} label="Log Out" />
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 p-6 md:p-10 overflow-auto">
-                <header className="flex justify-between items-center mb-10">
-                    <div>
-                        <h1 className="text-3xl font-black mb-1">Welcome back, Mark! 👋</h1>
+        <main className="flex-1 p-6 md:p-10 overflow-auto">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                <div>
+                    <h1 className="text-3xl font-black mb-1">Welcome back, {userName}! 👋</h1>
+                    <div className="flex items-center gap-2">
                         <p className="text-muted text-sm">Here's what's happening with your quizzes today.</p>
+                        <span className="px-2 py-0.5 rounded-md bg-primary/20 text-primary text-[10px] font-black uppercase tracking-wider border border-primary/30">
+                            {currentPlan.name} Plan
+                        </span>
                     </div>
-                    <button className="bg-primary hover:bg-primary/90 px-6 py-3 rounded-2xl flex items-center gap-2 font-bold shadow-xl shadow-primary/20 transition-all">
-                        <Plus className="w-5 h-5" /> Create New Quiz
+                </div>
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <button className="flex-1 md:flex-none glass px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-bold hover:bg-white/5 transition-all">
+                        <Zap className="w-4 h-4 text-amber-500" /> Upgrade
                     </button>
-                </header>
+                    <Link href="/dashboard/quizzes/create" className="flex-1 md:flex-none bg-primary hover:bg-primary/90 px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-bold shadow-xl shadow-primary/20 transition-all">
+                        <Plus className="w-5 h-5" /> Create Quiz
+                    </Link>
+                </div>
+            </header>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                    <StatCard label="Total Quizzes" value="24" icon={FileText} color="bg-blue-600" />
-                    <StatCard label="Active Players" value="1,284" icon={Users} color="bg-indigo-600" />
-                    <StatCard label="Avg. Score" value="78%" icon={Trophy} color="bg-amber-600" />
-                    <StatCard label="Total Hosting Time" value="142h" icon={Clock} color="bg-rose-600" />
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <StatCard label="Total Quizzes" value={quizCount.toString()} icon={FileText} color="bg-blue-600" />
+                <StatCard label="Active Players" value="0" icon={Users} color="bg-indigo-600" />
+                <StatCard label="Avg. Score" value="0%" icon={Trophy} color="bg-amber-600" />
+                <StatCard label="Limit Used" value={`${quizCount}/${currentPlan.limits.maxQuizzes}`} icon={Clock} color="bg-rose-600" />
+            </div>
+
+            {/* Content Grid */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                <div className="xl:col-span-2 bg-card border border-border p-8 rounded-[32px]">
+                    <div className="flex justify-between items-center mb-8">
+                        <h2 className="text-xl font-black">Recent Quizzes</h2>
+                        <Link href="/dashboard/quizzes" className="text-primary text-sm font-bold hover:underline">View All</Link>
+                    </div>
+
+                    <Suspense fallback={<div className="text-center py-12 text-muted">Loading quizzes...</div>}>
+                        <QuizList userId={userId} />
+                    </Suspense>
                 </div>
 
-                {/* Content Grid */}
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                    {/* Main List */}
-                    <div className="xl:col-span-2 bg-card border border-border p-8 rounded-[32px]">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-xl font-black">Recent Quizzes</h2>
-                            <button className="text-primary text-sm font-bold hover:underline">View All</button>
-                        </div>
-                        <div className="space-y-2">
-                            <QuizRow title="World Geography Pro" date="Oct 24, 2026" players="420" status="Active" />
-                            <QuizRow title="Modern Web Stack 2026" date="Oct 22, 2026" players="890" status="Active" />
-                            <QuizRow title="Classic Literature" date="Oct 18, 2026" players="120" status="Draft" />
-                            <QuizRow title="JavaScript Ninja Challenge" date="Oct 15, 2026" players="1,200" status="Active" />
-                            <QuizRow title="History of Space Tech" date="Oct 10, 2026" players="55" status="Draft" />
-                        </div>
-                    </div>
-
-                    {/* Activity/Sidebar */}
-                    <div className="space-y-8">
+                <div className="space-y-8">
+                    {userPlan === "FREE" && (
                         <div className="bg-linear-to-br from-primary to-accent p-8 rounded-[32px] text-white overflow-hidden relative group">
                             <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform">
                                 <Trophy size={140} />
                             </div>
                             <h3 className="text-2xl font-black mb-4 relative z-10">Upgrade to Pro</h3>
-                            <p className="text-white/80 text-sm mb-6 relative z-10">Get unlimited players, advanced analytics, and custom branding for your quizzes.</p>
+                            <p className="text-white/80 text-sm mb-6 relative z-10">Get up to 20 quizzes, 500 participants, and advanced analytics for your tournaments.</p>
                             <button className="bg-white text-primary px-6 py-3 rounded-xl font-bold text-sm relative z-10 hover:shadow-lg transition-all">
-                                Learn More
+                                See Plans
                             </button>
                         </div>
+                    )}
 
-                        <div className="bg-card border border-border p-8 rounded-[32px]">
-                            <h3 className="text-lg font-black mb-6">Upcoming Tournaments</h3>
-                            <div className="space-y-6">
-                                {[1, 2].map((i) => (
-                                    <div key={i} className="flex gap-4">
-                                        <div className="w-2 bg-primary rounded-full" />
-                                        <div>
-                                            <div className="font-bold text-sm uppercase">Cyber Trivia Night</div>
-                                            <div className="text-xs text-muted mb-2">Tomorrow at 8:00 PM</div>
-                                            <div className="flex -space-x-2">
-                                                {[1, 2, 3].map(j => (
-                                                    <div key={j} className="w-6 h-6 rounded-full border-2 border-slate-900 bg-slate-800" />
-                                                ))}
-                                                <div className="w-6 h-6 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[8px] font-bold">+12</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                    <div className="bg-card border border-border p-8 rounded-[32px]">
+                        <h3 className="text-lg font-black mb-6">Plan Features</h3>
+                        <ul className="space-y-4">
+                            {currentPlan.features.map((feature, i) => (
+                                <li key={i} className="flex items-center gap-3 text-sm text-muted">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                    {feature}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 </div>
-            </main>
-        </div>
+            </div>
+        </main>
     );
 }

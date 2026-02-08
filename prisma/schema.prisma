@@ -7,14 +7,45 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  quizzes   Quiz[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  plan          String    @default("FREE")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  quizzes       Quiz[]
+  sessions      Session[]
 }
 
 model Quiz {
@@ -23,18 +54,18 @@ model Quiz {
   description String?
   published   Boolean    @default(false)
   authorId    String
-  author      User       @relation(fields: [authorId], references: [id])
-  questions   Question[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  questions   Question[]
+  author      User       @relation(fields: [authorId], references: [id])
 }
 
 model Question {
   id      String   @id @default(cuid())
   text    String
   quizId  String
-  quiz    Quiz     @relation(fields: [quizId], references: [id])
   choices Choice[]
+  quiz    Quiz     @relation(fields: [quizId], references: [id])
 }
 
 model Choice {
@@ -43,4 +74,12 @@ model Choice {
   isCorrect  Boolean  @default(false)
   questionId String
   question   Question @relation(fields: [questionId], references: [id])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

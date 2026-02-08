@@ -5,30 +5,48 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Brain, Trophy, Users, Zap, ArrowRight, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PLANS } from "@/lib/plans";
 
-const Navbar = () => (
-  <nav className="fixed top-0 w-full z-50 glass">
-    <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-          <Brain className="text-white w-6 h-6" />
+import { useSession } from "next-auth/react";
+
+const Navbar = () => {
+  const { data: session } = useSession();
+
+  return (
+    <nav className="fixed top-0 w-full z-50 glass">
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+            <Brain className="text-white w-6 h-6" />
+          </div>
+          <span className="text-xl font-bold tracking-tight">QuizMaster SaaS</span>
         </div>
-        <span className="text-xl font-bold tracking-tight">QuizMaster SaaS</span>
+        <div className="flex items-center gap-6">
+          {session ? (
+            <Link
+              href="/dashboard"
+              className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-semibold transition-all shadow-lg shadow-primary/25"
+            >
+              Dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
+                Organizer Login
+              </Link>
+              <Link
+                href="/register"
+                className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-semibold transition-all shadow-lg shadow-primary/25"
+              >
+                Get Started
+              </Link>
+            </>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-6">
-        <Link href="/login" className="text-sm font-medium hover:text-primary transition-colors">
-          Organizer Login
-        </Link>
-        <Link
-          href="/register"
-          className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-semibold transition-all shadow-lg shadow-primary/25"
-        >
-          Get Started
-        </Link>
-      </div>
-    </div>
-  </nav>
-);
+    </nav>
+  );
+};
 
 const FeatureCard = ({ icon: Icon, title, description, delay }: any) => (
   <motion.div
@@ -137,6 +155,62 @@ export default function LandingPage() {
               description="Dynamic rankings with historical data, streak trackers, and custom rewards."
               delay={0.3}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-32 px-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl font-black mb-4">Transparent Pricing</h2>
+            <p className="text-muted">Choose the plan that's right for your event.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {Object.entries(PLANS).map(([key, plan], i) => (
+              <div
+                key={key}
+                className={cn(
+                  "p-8 rounded-[40px] border flex flex-col transition-all",
+                  key === "PRO"
+                    ? "bg-primary text-white border-primary shadow-2xl shadow-primary/20 scale-105 z-10"
+                    : "bg-card border-border hover:border-primary/50"
+                )}
+              >
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-black">{plan.price}</span>
+                    <span className={cn("text-sm", key === "PRO" ? "text-white/70" : "text-muted")}>/month</span>
+                  </div>
+                  <p className={cn("mt-4 text-sm leading-relaxed", key === "PRO" ? "text-white/80" : "text-muted")}>
+                    {plan.description}
+                  </p>
+                </div>
+
+                <ul className="space-y-4 mb-10 flex-1">
+                  {plan.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-sm font-medium">
+                      <Zap className={cn("w-4 h-4", key === "PRO" ? "text-white" : "text-primary")} />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href="/register"
+                  className={cn(
+                    "w-full py-4 rounded-2xl font-bold text-center transition-all",
+                    key === "PRO"
+                      ? "bg-white text-primary hover:bg-white/90"
+                      : "bg-primary text-white hover:bg-primary/90"
+                  )}
+                >
+                  Get Started
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>

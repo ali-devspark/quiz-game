@@ -4,8 +4,19 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Brain, Mail, Lock, CheckCircle2, ArrowLeft } from "lucide-react";
+import { login } from "@/app/actions/login";
+import { useState } from "react";
 
 export default function LoginPage() {
+    const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (formData: FormData) => {
+        const result = await login(formData);
+        if (result?.error) {
+            setError(result.error);
+        }
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 relative overflow-hidden">
             {/* Background purely decorative */}
@@ -33,13 +44,22 @@ export default function LoginPage() {
                 </div>
 
                 <div className="glass p-8 rounded-[32px] border border-white/5 shadow-2xl">
-                    <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                    <form className="space-y-6" action={handleSubmit}>
+                        {error && (
+                            <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-bold text-center">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-2">
-                            <label className="text-sm font-semibold ml-1">Email Address</label>
+                            <div className="flex justify-between items-center">
+                                <label className="text-sm font-semibold">Email Address</label>
+                            </div>
                             <div className="relative group">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input
+                                    name="email"
                                     type="email"
+                                    required
                                     placeholder="name@company.com"
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
@@ -47,33 +67,35 @@ export default function LoginPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <div className="flex justify-between items-center ml-1">
+                            <div className="flex justify-between items-center">
                                 <label className="text-sm font-semibold">Password</label>
                                 <Link href="#" className="text-xs font-bold text-primary hover:underline">Forgot?</Link>
                             </div>
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input
+                                    name="password"
                                     type="password"
+                                    required
                                     placeholder="••••••••"
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 ml-1">
+                        <div className="flex items-center gap-3">
                             <div className="w-5 h-5 rounded-md border border-white/10 bg-slate-900/50 flex items-center justify-center cursor-pointer">
                                 <CheckCircle2 className="w-4 h-4 text-primary hidden" />
                             </div>
                             <span className="text-sm text-muted">Keep me logged in</span>
                         </div>
 
-                        <Link
-                            href="/dashboard"
-                            className="block w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 transition-all text-center"
+                        <button
+                            type="submit"
+                            className="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 transition-all text-center"
                         >
                             Sign In
-                        </Link>
+                        </button>
                     </form>
 
                     <div className="mt-10 pt-8 border-t border-white/5 text-center">

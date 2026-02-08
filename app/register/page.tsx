@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Brain, Mail, Lock, User, ArrowLeft } from "lucide-react";
+import { register } from "@/app/actions/register";
 
 export default function RegisterPage() {
     return (
@@ -32,13 +33,15 @@ export default function RegisterPage() {
                 </div>
 
                 <div className="glass p-8 rounded-[32px] border border-white/5 shadow-2xl">
-                    <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+                    <form className="space-y-6" action={register}>
                         <div className="space-y-2">
                             <label className="text-sm font-semibold ml-1">Full Name</label>
                             <div className="relative group">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input
+                                    name="name"
                                     type="text"
+                                    required
                                     placeholder="John Doe"
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
@@ -50,7 +53,9 @@ export default function RegisterPage() {
                             <div className="relative group">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input
+                                    name="email"
                                     type="email"
+                                    required
                                     placeholder="name@company.com"
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
@@ -62,19 +67,21 @@ export default function RegisterPage() {
                             <div className="relative group">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-muted w-5 h-5 group-focus-within:text-primary transition-colors" />
                                 <input
+                                    name="password"
                                     type="password"
+                                    required
                                     placeholder="••••••••"
                                     className="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 pl-12 pr-4 outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-medium"
                                 />
                             </div>
                         </div>
 
-                        <Link
-                            href="/dashboard"
-                            className="block w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 transition-all text-center"
+                        <button
+                            type="submit"
+                            className="w-full bg-primary hover:bg-primary/90 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-primary/20 transition-all text-center"
                         >
                             Sign Up
-                        </Link>
+                        </button>
                     </form>
                 </div>
 

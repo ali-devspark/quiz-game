@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Create, manage, and host stunning general knowledge quizzes for your audience. The most powerful platform for interactive learning.",
 };
 
+import { SessionProvider } from "next-auth/react";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );
