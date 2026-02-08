@@ -1,0 +1,18 @@
+{
+    "tailwindCSS.experimental.configFile": "app/globals.css",
+    "tailwindCSS.classAttributes": [
+        "class",
+        "className",
+        "ngClass",
+        "class:list"
+    ],
+    "tailwindCSS.files.exclude": [
+        "**/.git/**",
+        "**/node_modules/**",
+        "**/.hg/**",
+        "**/.svn/**"
+    ],
+    "css.customData": [
+        ".vscode/tailwind.json"
+    ]
+}
