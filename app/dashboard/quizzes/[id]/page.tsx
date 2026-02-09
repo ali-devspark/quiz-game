@@ -15,17 +15,20 @@ import {
     Info
 } from "lucide-react";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, quizzes as quizzesTable, questions as questionsTable } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { eq, and, asc } from "drizzle-orm";
 
 import { AddQuestionForm } from "@/components/add-question-form";
 import { PublishButton } from "@/components/publish-button";
 
 async function QuestionsList({ quizId }: { quizId: string }) {
-    const questions = await prisma.question.findMany({
-        where: { quizId },
-        include: { choices: true },
-        orderBy: { id: 'asc' }
+    const questions = await db.query.questions.findMany({
+        where: eq(questionsTable.quizId, quizId),
+        with: {
+            choices: true,
+        },
+        orderBy: [asc(questionsTable.id)],
     });
 
     if (questions.length === 0) {
@@ -90,18 +93,18 @@ export default async function QuizDetailPage({ params }: { params: Promise<{ id:
 
     if (!userId) return null;
 
-    const quiz = await prisma.quiz.findUnique({
-        where: { id, authorId: userId },
-        include: {
-            _count: {
-                select: { questions: true }
-            }
-        }
+    const quiz = await db.query.quizzes.findFirst({
+        where: and(eq(quizzesTable.id, id), eq(quizzesTable.authorId, userId)),
+        with: {
+            questions: true,
+        },
     });
 
     if (!quiz) {
         notFound();
     }
+
+    const questionCount = quiz.questions.length;
 
     return (
         <div className="p-6 md:p-10 max-w-6xl mx-auto">
@@ -131,7 +134,7 @@ export default async function QuizDetailPage({ params }: { params: Promise<{ id:
                         <div className="w-1 h-1 rounded-full bg-white/10" />
                         <div className="flex items-center gap-1.5">
                             <FileText className="w-4 h-4" />
-                            {quiz._count.questions} Questions
+                            {questionCount} Questions
                         </div>
                     </div>
                 </div>
@@ -187,7 +190,7 @@ export default async function QuizDetailPage({ params }: { params: Promise<{ id:
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-muted">Total Points</span>
-                                    <span className="font-bold">{quiz._count.questions * 10} pts</span>
+                                    <span className="font-bold">{questionCount * 10} pts</span>
                                 </div>
                                 <div className="flex justify-between items-center text-sm text-pink-500">
                                     <span className="text-pink-500/60 transition-colors">Danger Zone</span>

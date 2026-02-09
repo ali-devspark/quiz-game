@@ -1,13 +1,14 @@
 import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { prisma } from "@/lib/prisma";
+import { DrizzleAdapter } from "@auth/drizzle-adapter";
+import { db, users } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     ...authConfig,
-    adapter: PrismaAdapter(prisma),
+    adapter: DrizzleAdapter(db),
     session: { strategy: "jwt" },
     providers: [
         Credentials({
@@ -19,8 +20,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
 
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email as string },
+                const user = await db.query.users.findFirst({
+                    where: eq(users.email, credentials.email as string),
                 });
 
                 if (!user || !user.password) return null;
@@ -33,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 if (!isPasswordCorrect) return null;
 
                 return {
-                    id: user.id.toString(),
+                    id: user.id,
                     email: user.email,
                     name: user.name,
                     plan: user.plan,

@@ -1,9 +1,8 @@
-"use strict";
-
 "use server";
 
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, quizzes, questions, choices } from "@/lib/db";
+import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -22,18 +21,18 @@ export async function createQuiz(formData: FormData) {
         throw new Error("Title is required");
     }
 
-    const quiz = await prisma.quiz.create({
-        data: {
-            title,
-            description,
-            authorId: userId,
-            published: false,
-        }
+    const quizId = crypto.randomUUID();
+    await db.insert(quizzes).values({
+        id: quizId,
+        title,
+        description,
+        authorId: userId,
+        published: false,
     });
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/quizzes");
-    redirect(`/dashboard/quizzes/${quiz.id}`);
+    redirect(`/dashboard/quizzes/${quizId}`);
 }
 
 export async function updateQuiz(quizId: string, data: { title?: string; description?: string; published?: boolean }) {
@@ -44,15 +43,18 @@ export async function updateQuiz(quizId: string, data: { title?: string; descrip
         throw new Error("Unauthorized");
     }
 
-    const quiz = await prisma.quiz.update({
-        where: { id: quizId, authorId: userId },
-        data: {
-            ...data
-        }
-    });
+    await db.update(quizzes)
+        .set({
+            ...data,
+            updatedAt: new Date(),
+        })
+        .where(and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId)));
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
-    return quiz;
+
+    return await db.query.quizzes.findFirst({
+        where: eq(quizzes.id, quizId),
+    });
 }
 
 export async function deleteQuiz(quizId: string) {
@@ -63,9 +65,8 @@ export async function deleteQuiz(quizId: string) {
         throw new Error("Unauthorized");
     }
 
-    await prisma.quiz.delete({
-        where: { id: quizId, authorId: userId }
-    });
+    await db.delete(quizzes)
+        .where(and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId)));
 
     revalidatePath("/dashboard/quizzes");
     redirect("/dashboard/quizzes");
@@ -85,18 +86,18 @@ export async function addQuestion(quizId: string, formData: FormData) {
         throw new Error("Question text is required");
     }
 
-    // Basic implementation: adds a question with 2 placeholders
-    await prisma.question.create({
-        data: {
+    await db.transaction(async (tx) => {
+        const questionId = crypto.randomUUID();
+        await tx.insert(questions).values({
+            id: questionId,
             text,
             quizId,
-            choices: {
-                create: [
-                    { text: "Option 1", isCorrect: true },
-                    { text: "Option 2", isCorrect: false },
-                ]
-            }
-        }
+        });
+
+        await tx.insert(choices).values([
+            { id: crypto.randomUUID(), text: "Option 1", isCorrect: true, questionId: questionId },
+            { id: crypto.randomUUID(), text: "Option 2", isCorrect: false, questionId: questionId },
+        ]);
     });
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
@@ -110,16 +111,15 @@ export async function togglePublish(quizId: string) {
         throw new Error("Unauthorized");
     }
 
-    const quiz = await prisma.quiz.findUnique({
-        where: { id: quizId, authorId: userId }
+    const quiz = await db.query.quizzes.findFirst({
+        where: and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId))
     });
 
     if (!quiz) throw new Error("Quiz not found");
 
-    await prisma.quiz.update({
-        where: { id: quizId },
-        data: { published: !quiz.published }
-    });
+    await db.update(quizzes)
+        .set({ published: !quiz.published, updatedAt: new Date() })
+        .where(eq(quizzes.id, quizId));
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
     revalidatePath("/dashboard/quizzes");

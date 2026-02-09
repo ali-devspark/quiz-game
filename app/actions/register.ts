@@ -1,7 +1,8 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { db, users } from "@/lib/db";
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 
 export async function register(formData: FormData) {
@@ -13,8 +14,8 @@ export async function register(formData: FormData) {
         throw new Error("Missing fields");
     }
 
-    const existingUser = await prisma.user.findUnique({
-        where: { email },
+    const existingUser = await db.query.users.findFirst({
+        where: eq(users.email, email),
     });
 
     if (existingUser) {
@@ -23,13 +24,12 @@ export async function register(formData: FormData) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
-        data: {
-            name,
-            email,
-            password: hashedPassword,
-            plan: "FREE",
-        },
+    await db.insert(users).values({
+        id: crypto.randomUUID(),
+        name,
+        email,
+        password: hashedPassword,
+        plan: "FREE",
     });
 
     redirect("/login");

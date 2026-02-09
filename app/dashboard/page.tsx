@@ -12,7 +12,8 @@ import {
 import { auth } from "@/auth";
 import { PLANS, PlanType } from "@/lib/plans";
 import { cn } from "@/lib/utils";
-import { prisma } from "@/lib/prisma";
+import { db, quizzes as quizzesTable } from "@/lib/db";
+import { eq, desc, count } from "drizzle-orm";
 import { LucideIcon } from "lucide-react";
 
 interface StatCardProps {
@@ -71,10 +72,10 @@ const QuizRow = ({ id, title, date, status }: QuizRowProps) => (
 );
 
 async function QuizList({ userId }: { userId: string }) {
-    const quizzes = await prisma.quiz.findMany({
-        where: { authorId: userId },
-        orderBy: { createdAt: 'desc' },
-        take: 5
+    const quizzes = await db.query.quizzes.findMany({
+        where: eq(quizzesTable.authorId, userId),
+        orderBy: [desc(quizzesTable.createdAt)],
+        limit: 5
     });
 
     if (quizzes.length === 0) {
@@ -94,7 +95,7 @@ async function QuizList({ userId }: { userId: string }) {
 
     return (
         <div className="space-y-2">
-            {quizzes.map((quiz) => (
+            {quizzes.map((quiz: any) => (
                 <QuizRow
                     key={quiz.id}
                     id={quiz.id}
@@ -116,9 +117,10 @@ export default async function DashboardPage() {
 
     if (!userId) return null;
 
-    const quizCount = await prisma.quiz.count({
-        where: { authorId: userId }
-    });
+    const [{ count: quizCount }] = await db
+        .select({ count: count() })
+        .from(quizzesTable)
+        .where(eq(quizzesTable.authorId, userId));
 
     return (
         <main className="flex-1 p-6 md:p-10 overflow-auto">

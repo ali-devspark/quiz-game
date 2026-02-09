@@ -10,8 +10,9 @@ import {
     Filter
 } from "lucide-react";
 import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
+import { db, quizzes as quizzesTable } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { eq, desc } from "drizzle-orm";
 
 interface Quiz {
     id: string;
@@ -65,14 +66,9 @@ const QuizCard = ({ quiz }: { quiz: Quiz }) => (
 );
 
 async function QuizzesGrid({ userId }: { userId: string }) {
-    const quizzes = await prisma.quiz.findMany({
-        where: { authorId: userId },
-        orderBy: { createdAt: 'desc' },
-        include: {
-            _count: {
-                select: { questions: true }
-            }
-        }
+    const quizzes = await db.query.quizzes.findMany({
+        where: eq(quizzesTable.authorId, userId),
+        orderBy: [desc(quizzesTable.createdAt)],
     });
 
     if (quizzes.length === 0) {
