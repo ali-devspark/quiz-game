@@ -100,14 +100,14 @@ export default function LoginPage() {
 
                     <div className="mt-10 pt-8 border-t border-white/5 text-center">
                         <p className="text-sm text-muted italic">
-                            "The best quiz platform I've ever used. Simple yet powerful."
+                            &quot;The best quiz platform I&apos;ve ever used. Simple yet powerful.&quot;
                         </p>
                         <p className="text-xs font-bold mt-2 text-white/50">— Alex Rivers, Hosting Pro</p>
                     </div>
                 </div>
 
                 <p className="text-center mt-8 text-sm text-muted">
-                    Don't have an account? <Link href="/register" className="text-primary font-bold hover:underline">Register now</Link>
+                    Don&apos;t have an account? <Link href="/register" className="text-primary font-bold hover:underline">Register now</Link>
                 </p>
             </motion.div>
         </div>

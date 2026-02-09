@@ -8,6 +8,15 @@ import { cn } from "@/lib/utils";
 import { PLANS } from "@/lib/plans";
 
 import { useSession } from "next-auth/react";
+import Image from "next/image";
+import { LucideIcon } from "lucide-react";
+
+interface FeatureCardProps {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  delay: number;
+}
 
 const Navbar = () => {
   const { data: session } = useSession();
@@ -48,7 +57,7 @@ const Navbar = () => {
   );
 };
 
-const FeatureCard = ({ icon: Icon, title, description, delay }: any) => (
+const FeatureCard = ({ icon: Icon, title, description, delay }: FeatureCardProps) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     whileInView={{ opacity: 1, y: 0 }}
@@ -108,10 +117,11 @@ export default function LandingPage() {
             className="mt-20 relative px-4 w-full flex justify-center"
           >
             <div className="w-full max-w-5xl aspect-video rounded-3xl overflow-hidden border border-white/10 shadow-2xl relative bg-slate-900">
-              <img
+              <Image
                 src="/assets/img/dashboard.png"
                 alt="Dashboard Preview"
-                className="absolute inset-0 w-full h-full object-cover block"
+                fill
+                className="object-cover block"
               />
               <div className="absolute inset-0 bg-linear-to-t from-[#020617] via-transparent to-transparent pointer-events-none z-10" />
               <div className="absolute inset-0 flex items-center justify-center z-20">
@@ -164,11 +174,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-20">
             <h2 className="text-4xl font-black mb-4">Transparent Pricing</h2>
-            <p className="text-muted">Choose the plan that's right for your event.</p>
+            <p className="text-muted">Choose the plan that&apos;s right for your event.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {Object.entries(PLANS).map(([key, plan], i) => (
+            {Object.entries(PLANS).map(([key, plan]) => (
               <div
                 key={key}
                 className={cn(

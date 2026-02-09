@@ -5,16 +5,16 @@ export const authConfig = {
         signIn: "/login",
     },
     callbacks: {
-        async session({ session, token }: any) {
+        async session({ session, token }) {
             if (token.sub && session.user) {
                 session.user.id = token.sub;
             }
             if (token.plan && session.user) {
-                session.user.plan = token.plan;
+                (session.user as any).plan = token.plan;
             }
             return session;
         },
-        async jwt({ token, user }: any) {
+        async jwt({ token, user }) {
             if (user) {
                 token.plan = (user as any).plan;
             }

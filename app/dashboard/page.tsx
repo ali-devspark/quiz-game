@@ -13,8 +13,16 @@ import { auth } from "@/auth";
 import { PLANS, PlanType } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
+import { LucideIcon } from "lucide-react";
 
-const StatCard = ({ label, value, icon: Icon, color }: any) => (
+interface StatCardProps {
+    label: string;
+    value: string;
+    icon: LucideIcon;
+    color: string;
+}
+
+const StatCard = ({ label, value, icon: Icon, color }: StatCardProps) => (
     <div className="bg-card border border-border p-6 rounded-3xl group hover:border-primary/50 transition-all">
         <div className="flex justify-between items-start mb-4">
             <div className={cn("p-3 rounded-2xl", color)}>
@@ -26,7 +34,14 @@ const StatCard = ({ label, value, icon: Icon, color }: any) => (
     </div>
 );
 
-const QuizRow = ({ id, title, date, status }: any) => (
+interface QuizRowProps {
+    id: string;
+    title: string;
+    date: Date;
+    status: boolean;
+}
+
+const QuizRow = ({ id, title, date, status }: QuizRowProps) => (
     <div className="flex items-center justify-between p-4 rounded-2xl hover:bg-white/5 transition-all group border border-transparent hover:border-white/5">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center font-bold text-lg">
@@ -79,7 +94,7 @@ async function QuizList({ userId }: { userId: string }) {
 
     return (
         <div className="space-y-2">
-            {quizzes.map((quiz: any) => (
+            {quizzes.map((quiz) => (
                 <QuizRow
                     key={quiz.id}
                     id={quiz.id}
@@ -96,7 +111,7 @@ export default async function DashboardPage() {
     const session = await auth();
     const userId = session?.user?.id;
     const userName = session?.user?.name || "Organizer";
-    const userPlan = (session?.user as any)?.plan as PlanType || "FREE";
+    const userPlan = (session?.user as { plan?: PlanType })?.plan || "FREE";
     const currentPlan = PLANS[userPlan];
 
     if (!userId) return null;
@@ -111,7 +126,7 @@ export default async function DashboardPage() {
                 <div>
                     <h1 className="text-3xl font-black mb-1">Welcome back, {userName}! 👋</h1>
                     <div className="flex items-center gap-2">
-                        <p className="text-muted text-sm">Here's what's happening with your quizzes today.</p>
+                        <p className="text-muted text-sm">Here&apos;s what&apos;s happening with your quizzes today.</p>
                         <span className="px-2 py-0.5 rounded-md bg-primary/20 text-primary text-[10px] font-black uppercase tracking-wider border border-primary/30">
                             {currentPlan.name} Plan
                         </span>

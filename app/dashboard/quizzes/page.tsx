@@ -13,7 +13,15 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
-const QuizCard = ({ quiz }: { quiz: any }) => (
+interface Quiz {
+    id: string;
+    title: string;
+    description: string | null;
+    published: boolean;
+    createdAt: Date;
+}
+
+const QuizCard = ({ quiz }: { quiz: Quiz }) => (
     <div className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all group">
         <div className="flex justify-between items-start mb-6">
             <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center border border-white/5">

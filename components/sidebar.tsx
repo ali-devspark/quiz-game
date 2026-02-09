@@ -7,14 +7,13 @@ import {
     LayoutDashboard,
     FileText,
     LogOut,
-    Brain,
-    Trophy,
-    Users,
-    Settings
+    Brain
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const SidebarItem = ({ icon: Icon, label, href }: { icon: any, label: string, href: string }) => {
+import { LucideIcon } from "lucide-react";
+
+const SidebarItem = ({ icon: Icon, label, href }: { icon: LucideIcon, label: string, href: string }) => {
     const pathname = usePathname();
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 

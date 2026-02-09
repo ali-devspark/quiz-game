@@ -36,7 +36,7 @@ export async function createQuiz(formData: FormData) {
     redirect(`/dashboard/quizzes/${quiz.id}`);
 }
 
-export async function updateQuiz(quizId: string, data: any) {
+export async function updateQuiz(quizId: string, data: { title?: string; description?: string; published?: boolean }) {
     const session = await auth();
     const userId = session?.user?.id;
 

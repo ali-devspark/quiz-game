@@ -28,7 +28,7 @@ export default function CreateQuizPage() {
                     </div>
 
                     <p className="text-muted mb-10 max-w-lg">
-                        Give your quiz a compelling title and description. You'll be able to add questions and customize settings on the next step.
+                        Give your quiz a compelling title and description. You&apos;ll be able to add questions and customize settings on the next step.
                     </p>
 
                     <form action={createQuiz} className="space-y-8">
