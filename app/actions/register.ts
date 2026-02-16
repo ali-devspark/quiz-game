@@ -1,8 +1,6 @@
 "use server";
 
-import bcrypt from "bcryptjs";
-import { db, users } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 export async function register(formData: FormData) {
@@ -14,23 +12,21 @@ export async function register(formData: FormData) {
         throw new Error("Missing fields");
     }
 
-    const existingUser = await db.query.users.findFirst({
-        where: eq(users.email, email),
+    const supabase = await createClient();
+
+    const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            data: {
+                name,
+            },
+        },
     });
 
-    if (existingUser) {
-        throw new Error("User already exists");
+    if (error) {
+        throw new Error(error.message);
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await db.insert(users).values({
-        id: crypto.randomUUID(),
-        name,
-        email,
-        password: hashedPassword,
-        plan: "FREE",
-    });
-
-    redirect("/login");
+    redirect("/login?message=Check email to continue sign in process");
 }

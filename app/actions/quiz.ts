@@ -1,16 +1,16 @@
 "use server";
 
-import { auth } from "@/auth";
-import { db, quizzes, questions, choices } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 export async function createQuiz(formData: FormData) {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
 
-    if (!userId) {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
         throw new Error("Unauthorized");
     }
 
@@ -21,62 +21,84 @@ export async function createQuiz(formData: FormData) {
         throw new Error("Title is required");
     }
 
-    const quizId = crypto.randomUUID();
-    await db.insert(quizzes).values({
-        id: quizId,
-        title,
-        description,
-        authorId: userId,
-        published: false,
-    });
+    const { data: quiz, error } = await supabase
+        .from('quizzes')
+        .insert({
+            title,
+            description,
+            author_id: user.id,
+            published: false,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        throw new Error(error.message);
+    }
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/quizzes");
-    redirect(`/dashboard/quizzes/${quizId}`);
+    redirect(`/dashboard/quizzes/${quiz.id}`);
 }
 
 export async function updateQuiz(quizId: string, data: { title?: string; description?: string; published?: boolean }) {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
 
-    if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
         throw new Error("Unauthorized");
     }
 
-    await db.update(quizzes)
-        .set({
+    const { data: quiz, error } = await supabase
+        .from('quizzes')
+        .update({
             ...data,
-            updatedAt: new Date(),
+            updated_at: new Date().toISOString(),
         })
-        .where(and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId)));
+        .eq('id', quizId)
+        .eq('author_id', user.id)
+        .select()
+        .single();
+
+    if (error) {
+        throw new Error(error.message);
+    }
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
 
-    return await db.query.quizzes.findFirst({
-        where: eq(quizzes.id, quizId),
-    });
+    return quiz;
 }
 
 export async function deleteQuiz(quizId: string) {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
 
-    if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
         throw new Error("Unauthorized");
     }
 
-    await db.delete(quizzes)
-        .where(and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId)));
+    const { error } = await supabase
+        .from('quizzes')
+        .delete()
+        .eq('id', quizId)
+        .eq('author_id', user.id);
+
+    if (error) {
+        throw new Error(error.message);
+    }
 
     revalidatePath("/dashboard/quizzes");
     redirect("/dashboard/quizzes");
 }
 
 export async function addQuestion(quizId: string, formData: FormData) {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
 
-    if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
         throw new Error("Unauthorized");
     }
 
@@ -86,40 +108,74 @@ export async function addQuestion(quizId: string, formData: FormData) {
         throw new Error("Question text is required");
     }
 
-    await db.transaction(async (tx) => {
-        const questionId = crypto.randomUUID();
-        await tx.insert(questions).values({
-            id: questionId,
-            text,
-            quizId,
-        });
+    // Verify ownership first
+    const { data: quiz } = await supabase
+        .from('quizzes')
+        .select('id')
+        .eq('id', quizId)
+        .eq('author_id', user.id)
+        .single();
 
-        await tx.insert(choices).values([
-            { id: crypto.randomUUID(), text: "Option 1", isCorrect: true, questionId: questionId },
-            { id: crypto.randomUUID(), text: "Option 2", isCorrect: false, questionId: questionId },
+    if (!quiz) throw new Error("Unauthorized");
+
+    // Start inserting question
+    const { data: question, error: questionError } = await supabase
+        .from('questions')
+        .insert({
+            text,
+            quiz_id: quizId,
+        })
+        .select()
+        .single();
+
+    if (questionError) {
+        throw new Error(questionError.message);
+    }
+
+    // Insert choices
+    const { error: choicesError } = await supabase
+        .from('choices')
+        .insert([
+            { text: "Option 1", is_correct: true, question_id: question.id },
+            { text: "Option 2", is_correct: false, question_id: question.id },
         ]);
-    });
+
+    if (choicesError) {
+        // In a real app we might want to revert the question insertion here
+        throw new Error(choicesError.message);
+    }
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
 }
 
 export async function togglePublish(quizId: string) {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
 
-    if (!userId) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
         throw new Error("Unauthorized");
     }
 
-    const quiz = await db.query.quizzes.findFirst({
-        where: and(eq(quizzes.id, quizId), eq(quizzes.authorId, userId))
-    });
+    // First get current status
+    const { data: quiz } = await supabase
+        .from('quizzes')
+        .select('published')
+        .eq('id', quizId)
+        .eq('author_id', user.id)
+        .single();
 
     if (!quiz) throw new Error("Quiz not found");
 
-    await db.update(quizzes)
-        .set({ published: !quiz.published, updatedAt: new Date() })
-        .where(eq(quizzes.id, quizId));
+    const { error } = await supabase
+        .from('quizzes')
+        .update({
+            published: !quiz.published,
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', quizId);
+
+    if (error) throw new Error(error.message);
 
     revalidatePath(`/dashboard/quizzes/${quizId}`);
     revalidatePath("/dashboard/quizzes");

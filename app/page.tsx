@@ -1,13 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Brain, Trophy, Users, Zap, ArrowRight, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PLANS } from "@/lib/plans";
-
-import { useSession } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 import Image from "next/image";
 import { LucideIcon } from "lucide-react";
 
@@ -19,7 +19,14 @@ interface FeatureCardProps {
 }
 
 const Navbar = () => {
-  const { data: session } = useSession();
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+  }, []);
 
   return (
     <nav className="fixed top-0 w-full z-50 glass">
@@ -28,10 +35,10 @@ const Navbar = () => {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
             <Brain className="text-white w-6 h-6" />
           </div>
-          <span className="text-xl font-bold tracking-tight">QuizMaster SaaS</span>
+          <span className="text-xl font-bold tracking-tight">QuizMaster</span>
         </div>
         <div className="flex items-center gap-6">
-          {session ? (
+          {user ? (
             <Link
               href="/dashboard"
               className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-full text-sm font-semibold transition-all shadow-lg shadow-primary/25"

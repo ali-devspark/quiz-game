@@ -9,12 +9,11 @@ import {
     Zap,
     ExternalLink
 } from "lucide-react";
-import { auth } from "@/auth";
+import { createClient } from "@/lib/supabase/server";
 import { PLANS, PlanType } from "@/lib/plans";
 import { cn } from "@/lib/utils";
-import { db, quizzes as quizzesTable } from "@/lib/db";
-import { eq, desc, count } from "drizzle-orm";
 import { LucideIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 
 interface StatCardProps {
     label: string;
@@ -72,13 +71,15 @@ const QuizRow = ({ id, title, date, status }: QuizRowProps) => (
 );
 
 async function QuizList({ userId }: { userId: string }) {
-    const quizzes = await db.query.quizzes.findMany({
-        where: eq(quizzesTable.authorId, userId),
-        orderBy: [desc(quizzesTable.createdAt)],
-        limit: 5
-    });
+    const supabase = await createClient();
+    const { data: quizzes } = await supabase
+        .from('quizzes')
+        .select('id, title, created_at, published')
+        .eq('author_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-    if (quizzes.length === 0) {
+    if (!quizzes || quizzes.length === 0) {
         return (
             <div className="space-y-4 text-center py-12">
                 <div className="w-20 h-20 bg-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-4 border border-white/5">
@@ -95,12 +96,12 @@ async function QuizList({ userId }: { userId: string }) {
 
     return (
         <div className="space-y-2">
-            {quizzes.map((quiz: any) => (
+            {quizzes.map((quiz) => (
                 <QuizRow
                     key={quiz.id}
                     id={quiz.id}
                     title={quiz.title}
-                    date={quiz.createdAt}
+                    date={new Date(quiz.created_at)}
                     status={quiz.published}
                 />
             ))}
@@ -109,18 +110,28 @@ async function QuizList({ userId }: { userId: string }) {
 }
 
 export default async function DashboardPage() {
-    const session = await auth();
-    const userId = session?.user?.id;
-    const userName = session?.user?.name || "Organizer";
-    const userPlan = (session?.user as { plan?: PlanType })?.plan || "FREE";
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        return redirect("/login");
+    }
+
+    // Fetch user profile for plan
+    const { data: profile } = await supabase
+        .from('users')
+        .select('name, plan')
+        .eq('id', user.id)
+        .single();
+
+    const userName = profile?.name || user.user_metadata?.name || "Organizer";
+    const userPlan = (profile?.plan as PlanType) || "FREE";
     const currentPlan = PLANS[userPlan];
 
-    if (!userId) return null;
-
-    const [{ count: quizCount }] = await db
-        .select({ count: count() })
-        .from(quizzesTable)
-        .where(eq(quizzesTable.authorId, userId));
+    const { count: quizCount } = await supabase
+        .from('quizzes')
+        .select('*', { count: 'exact', head: true })
+        .eq('author_id', user.id);
 
     return (
         <main className="flex-1 p-6 md:p-10 overflow-auto">
@@ -146,10 +157,10 @@ export default async function DashboardPage() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                <StatCard label="Total Quizzes" value={quizCount.toString()} icon={FileText} color="bg-blue-600" />
+                <StatCard label="Total Quizzes" value={(quizCount || 0).toString()} icon={FileText} color="bg-blue-600" />
                 <StatCard label="Active Players" value="0" icon={Users} color="bg-indigo-600" />
                 <StatCard label="Avg. Score" value="0%" icon={Trophy} color="bg-amber-600" />
-                <StatCard label="Limit Used" value={`${quizCount}/${currentPlan.limits.maxQuizzes}`} icon={Clock} color="bg-rose-600" />
+                <StatCard label="Limit Used" value={`${quizCount || 0}/${currentPlan.limits.maxQuizzes}`} icon={Clock} color="bg-rose-600" />
             </div>
 
             {/* Content Grid */}
@@ -161,7 +172,7 @@ export default async function DashboardPage() {
                     </div>
 
                     <Suspense fallback={<div className="text-center py-12 text-muted">Loading quizzes...</div>}>
-                        <QuizList userId={userId} />
+                        <QuizList userId={user.id} />
                     </Suspense>
                 </div>
 

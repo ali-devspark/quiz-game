@@ -1,6 +1,6 @@
 import React, { Suspense } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
     ChevronLeft,
     FileText,
@@ -14,24 +14,31 @@ import {
     Circle,
     Info
 } from "lucide-react";
-import { auth } from "@/auth";
-import { db, quizzes as quizzesTable, questions as questionsTable } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { eq, and, asc } from "drizzle-orm";
 
 import { AddQuestionForm } from "@/components/add-question-form";
 import { PublishButton } from "@/components/publish-button";
 
-async function QuestionsList({ quizId }: { quizId: string }) {
-    const questions = await db.query.questions.findMany({
-        where: eq(questionsTable.quizId, quizId),
-        with: {
-            choices: true,
-        },
-        orderBy: [asc(questionsTable.id)],
-    });
+interface Choice {
+    id: string;
+    text: string;
+    is_correct: boolean;
+    question_id: string;
+}
 
-    if (questions.length === 0) {
+async function QuestionsList({ quizId }: { quizId: string }) {
+    const supabase = await createClient();
+    const { data: questions } = await supabase
+        .from('questions')
+        .select(`
+            *,
+            choices (*)
+        `)
+        .eq('quiz_id', quizId)
+        .order('id', { ascending: true });
+
+    if (!questions || questions.length === 0) {
         return (
             <div className="space-y-6">
                 <div className="bg-card/50 border border-dashed border-white/10 rounded-[32px] p-12 text-center">
@@ -63,17 +70,17 @@ async function QuestionsList({ quizId }: { quizId: string }) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {question.choices.map((choice) => (
+                        {question.choices.map((choice: Choice) => (
                             <div
                                 key={choice.id}
                                 className={cn(
                                     "p-4 rounded-2xl border flex items-center gap-3 transition-all",
-                                    choice.isCorrect
+                                    choice.is_correct
                                         ? "bg-green-500/10 border-green-500/20 text-green-500"
                                         : "bg-slate-900/50 border-white/5 text-muted"
                                 )}
                             >
-                                {choice.isCorrect ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
+                                {choice.is_correct ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <Circle className="w-4 h-4 shrink-0" />}
                                 <span className="font-medium">{choice.text}</span>
                             </div>
                         ))}
@@ -88,23 +95,25 @@ async function QuestionsList({ quizId }: { quizId: string }) {
 
 export default async function QuizDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!userId) return null;
+    if (!user) {
+        return redirect("/login");
+    }
 
-    const quiz = await db.query.quizzes.findFirst({
-        where: and(eq(quizzesTable.id, id), eq(quizzesTable.authorId, userId)),
-        with: {
-            questions: true,
-        },
-    });
+    const { data: quiz } = await supabase
+        .from('quizzes')
+        .select('*, questions(id)')
+        .eq('id', id)
+        .eq('author_id', user.id)
+        .single();
 
     if (!quiz) {
         notFound();
     }
 
-    const questionCount = quiz.questions.length;
+    const questionCount = quiz.questions?.length || 0;
 
     return (
         <div className="p-6 md:p-10 max-w-6xl mx-auto">
@@ -129,7 +138,7 @@ export default async function QuizDetailPage({ params }: { params: Promise<{ id:
                     <div className="flex items-center gap-4 text-muted text-sm">
                         <div className="flex items-center gap-1.5">
                             <Clock className="w-4 h-4" />
-                            Created on {new Date(quiz.createdAt).toLocaleDateString()}
+                            Created on {new Date(quiz.created_at).toLocaleDateString()}
                         </div>
                         <div className="w-1 h-1 rounded-full bg-white/10" />
                         <div className="flex items-center gap-1.5">

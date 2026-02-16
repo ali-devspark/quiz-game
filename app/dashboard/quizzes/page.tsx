@@ -9,17 +9,16 @@ import {
     Search,
     Filter
 } from "lucide-react";
-import { auth } from "@/auth";
-import { db, quizzes as quizzesTable } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
-import { eq, desc } from "drizzle-orm";
+import { redirect } from "next/navigation";
 
 interface Quiz {
     id: string;
     title: string;
     description: string | null;
     published: boolean;
-    createdAt: Date;
+    created_at: string;
 }
 
 const QuizCard = ({ quiz }: { quiz: Quiz }) => (
@@ -53,7 +52,7 @@ const QuizCard = ({ quiz }: { quiz: Quiz }) => (
         <div className="flex items-center justify-between pt-6 border-t border-white/5">
             <div className="flex items-center gap-2 text-xs text-muted">
                 <Clock className="w-3 h-3" />
-                {new Date(quiz.createdAt).toLocaleDateString()}
+                {new Date(quiz.created_at).toLocaleDateString()}
             </div>
             <Link
                 href={`/dashboard/quizzes/${quiz.id}`}
@@ -66,12 +65,14 @@ const QuizCard = ({ quiz }: { quiz: Quiz }) => (
 );
 
 async function QuizzesGrid({ userId }: { userId: string }) {
-    const quizzes = await db.query.quizzes.findMany({
-        where: eq(quizzesTable.authorId, userId),
-        orderBy: [desc(quizzesTable.createdAt)],
-    });
+    const supabase = await createClient();
+    const { data: quizzes } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('author_id', userId)
+        .order('created_at', { ascending: false });
 
-    if (quizzes.length === 0) {
+    if (!quizzes || quizzes.length === 0) {
         return (
             <div className="col-span-full py-24 text-center">
                 <div className="w-24 h-24 bg-slate-900 rounded-[32px] flex items-center justify-center mx-auto mb-6 border border-white/5">
@@ -102,10 +103,12 @@ async function QuizzesGrid({ userId }: { userId: string }) {
 }
 
 export default async function QuizzesPage() {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (!userId) return null;
+    if (!user) {
+        return redirect("/login");
+    }
 
     return (
         <div className="p-6 md:p-10">
@@ -138,7 +141,7 @@ export default async function QuizzesPage() {
             </div>
 
             <Suspense fallback={<div className="text-center py-24 text-muted">Loading your quizzes...</div>}>
-                <QuizzesGrid userId={userId} />
+                <QuizzesGrid userId={user.id} />
             </Suspense>
         </div>
     );
